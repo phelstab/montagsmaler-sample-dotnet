@@ -1,0 +1,191 @@
+= Pictionary Game
+:toc:
+:toc-title: Table of Contents
+:toclevels: 3
+:imagesdir: image
+
+== Introduction
+
+This project is a multiplayer Pictionary game where players can draw and guess words in real-time. One player draws a randomly assigned word while others try to guess it. The entire project, including this README, was created with Sourcegraph Cody (Claude 3.7 Sonnet extended thinking).
+
+image::game.png[Pictionary Gameplay with Two Connected Clients]
+
+== Overview
+
+The Pictionary game is built as a client-server application using the following technologies:
+
+* ASP.NET Core for the server
+* SignalR for real-time communication
+* WPF for the client user interface
+* .NET 8.0 framework
+
+The application follows a clean architecture pattern with three main projects:
+
+* `Pictionary.Client`: WPF client application for player interaction
+* `Pictionary.Server`: ASP.NET Core server handling game logic and coordination
+* `Pictionary.Shared`: Common models and constants shared between client and server
+
+== How It Works
+
+=== Game Flow
+
+[plantuml]
+....
+@startuml
+skinparam StateBackgroundColor LightBlue
+skinparam StateBorderColor Blue
+
+[*] --> WaitingForPlayers : Game starts
+
+state WaitingForPlayers {
+  [*] --> CheckingPlayers
+  CheckingPlayers --> [*] : 2+ players joined
+  CheckingPlayers --> CheckingPlayers : < 2 players
+}
+
+WaitingForPlayers --> Countdown : 2+ players connected
+Countdown --> Playing : After 5 seconds
+Playing --> RoundEnd : Word guessed correctly
+RoundEnd --> Countdown : After 3 seconds
+
+Playing : Word assigned to drawer
+Playing : Other players make guesses
+Playing : Points awarded for correct guesses
+
+state "<<choiceState>> PlayerCountCheck" as PlayerCountCheck
+RoundEnd --> PlayerCountCheck
+PlayerCountCheck --> Countdown : 2+ players remain
+PlayerCountCheck --> WaitingForPlayers : < 2 players
+
+@enduml
+....
+
+=== Components
+
+==== Client (WPF Application)
+
+The client application provides a graphical interface where users can:
+
+* Connect to the game server with a chosen username
+* Draw on a canvas when selected as the drawer
+* Submit guesses when not drawing
+* See the current game status and player list
+
+==== Server (ASP.NET Core)
+
+The server manages the game state and coordinates between players:
+
+* Handles player connections and disconnections
+* Manages game state transitions
+* Broadcasts drawing updates to all players except the drawer
+* Validates word guesses
+* Assigns words to the drawer
+* Keeps track of scores
+
+==== Shared Models
+
+Common models used by both client and server:
+
+* `Player`: Represents a player with connection ID, name, score, and status
+* `GameState`: Contains the current state of the game
+* `DrawingUpdate`: Represents a drawing action to be transmitted
+* `Constants`: Shared constants like hub URL
+
+== Technical Implementation
+
+=== Real-Time Communication
+
+The game uses SignalR for real-time bidirectional communication:
+
+* The server exposes a SignalR hub (`PictionaryHub`)
+* Clients connect to this hub to send and receive messages
+* The server broadcasts drawing updates in real-time
+* Game state changes are pushed to all connected clients
+
+=== Game State Management
+
+The `GameService` on the server manages the game state and logic:
+
+* Player tracking and management
+* Word selection and assignment
+* Game state transitions (waiting, countdown, playing, round end)
+* Score calculation
+
+=== Drawing Implementation
+
+The drawing functionality uses WPF's Canvas element:
+
+* Mouse events (down, move, up) are captured to draw lines
+* Drawing coordinates are transmitted through SignalR
+* Non-drawing players receive these coordinates and render the same lines
+* Clear canvas functionality is synchronized across all clients
+
+== How to Run
+
+=== Prerequisites
+
+* .NET 8.0 SDK
+* Visual Studio 2022 or similar IDE with .NET support
+
+=== Running the Server
+
+1. Navigate to the Pictionary.Server directory
+2. Run the server using the following command:
+
+[source,bash]
+----
+dotnet run
+----
+
+The server will start on http://localhost:5088.
+
+=== Running the Client
+
+1. Navigate to the Pictionary.Client directory
+2. Run the client using:
+
+[source,bash]
+----
+dotnet run
+----
+
+3. Multiple clients can be started to play the game
+
+== Game Rules
+
+1. A minimum of 2 players is required to start the game
+2. Once enough players join, a 5-second countdown begins
+3. One player is randomly selected as the drawer and receives a word to draw
+4. Other players try to guess the word based on the drawing
+5. The first player to guess correctly earns 10 points, and the drawer earns 5 points
+6. After a correct guess, a new round begins after 3 seconds
+7. If the drawer disconnects, a new round starts with a new drawer
+
+== Code Structure
+
+=== Client
+
+* `MainWindow.xaml/cs`: Main UI and client-side game logic
+* `App.xaml/cs`: Application entry point
+
+=== Server
+
+* `Program.cs`: Server configuration and startup
+* `PictionaryHub.cs`: SignalR hub for real-time communication
+* `GameService.cs`: Game logic and state management
+
+=== Shared
+
+* Models for data transfer between client and server
+* Constants shared across projects
+
+== Acknowledgments
+
+This project showcases the capabilities of modern .NET development with:
+
+* .NET 8.0 features
+* Real-time web communication with SignalR
+* WPF for desktop UI
+* Clean architecture principles
+
+All code was generated with the assistance of Sourcegraph Cody (Claude 3.7 Sonnet extended thinking).
